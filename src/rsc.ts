@@ -1,9 +1,18 @@
 import * as React from 'react'
-import { ComponentClass } from 'react'
+import * as drawing from './drawing'
+import {
+  ComponentClass as PublicComponentClass,
+  Component as PublicComponent,
+} from 'react'
 import { parseSvgTransform } from './utils'
 
 type Element = JSX.Element
-type Ctx = CanvasRenderingContext2D
+
+declare module 'react' {
+  interface Component {
+    __feactInternalInstance: RscCompositeComponentWrapper
+  }
+}
 
 class TopLevelWrapper extends React.Component {
   render() {
@@ -11,12 +20,21 @@ class TopLevelWrapper extends React.Component {
   }
 }
 
+const RscInstanceMap = {
+  set(key: PublicComponent, value: RscCompositeComponentWrapper) {
+    key.__feactInternalInstance = value
+  },
+  get(key: PublicComponent) {
+    return key.__feactInternalInstance
+  },
+}
+
 function transformMatrix(ctx: Ctx, m: Matrix) {
   ctx.transform(m.a, m.b, m.c, m.d, m.e, m.f)
 }
 
 const RscReconciler = {
-  mountComponent(internalInstance: InternalComponent, ctx: Ctx) {
+  mountComponent(internalInstance: InternalComponentClass, ctx: Ctx) {
     return internalInstance.mountComponent(ctx)
   },
   // receiveComponent(internalInstance: InternalComponent, nextElement: Element) {
@@ -27,37 +45,110 @@ const RscReconciler = {
   // },
 }
 
-interface InternalComponent {
+function instantiateRscComponent(element: Element): InternalComponentClass {
+  if (typeof element.type === 'string') {
+    return new RscDOMComponent(element)
+  } else if (typeof element.type === 'function') {
+    return new RscCompositeComponentWrapper(element)
+  }
+}
+
+
+interface InternalComponentClass {
   _currentElement: Element
   mountComponent(ctx: Ctx): void
   /* TODO */ receiveComponent(nextElement: JSX.Element): void
   /* TODO */ performUpdateIfNecessary(): void
 }
 
-class RscCompositeComponentWrapper implements InternalComponent {
+class RscDOMComponent implements InternalComponentClass {
   _currentElement: Element
-  _renderedComponent: InternalComponent
-  _instance: ComponentClass
+  /* SFC */
+  _renderedChildren: InternalComponentClass[] = []
 
   constructor(element: Element) {
     this._currentElement = element
   }
 
   mountComponent(ctx: Ctx) {
-    const Component = this._currentElement.type as ComponentClass
+    const element = this._currentElement
+
+    ctx.save()
+
+    if (element.props.transform) {
+      const svgTransformMatrix = parseSvgTransform(element.props.transform)
+      transformMatrix(ctx, svgTransformMatrix)
+    }
+
+    if (element.type === 'rect') {
+      drawing.rect(ctx, element.props)
+    } else if (element.type === 'path') {
+      drawing.path(ctx, element.props)
+    }
+
+    if (element.props.children) {
+      const children = React.Children.toArray(element.props.children) as Element[]
+
+      children.forEach(childElement => {
+        const child = instantiateRscComponent(childElement)
+        child.mountComponent(ctx)
+        this._renderedChildren.push(child)
+      })
+    }
+
+    ctx.restore()
+    return /* 返回一个代表mount结果的值 */
+  }
+
+
+  /* TODO */ receiveComponent(nextElement: JSX.Element) { }
+  /* TODO */ performUpdateIfNecessary() { }
+}
+
+class RscCompositeComponentWrapper implements InternalComponentClass {
+  _currentElement: Element
+  _renderedComponent: InternalComponentClass
+  _instance: PublicComponent
+
+  constructor(element: Element) {
+    this._currentElement = element
+  }
+
+  mountComponent(ctx: Ctx) {
+    const Component = this._currentElement.type as PublicComponentClass
+      ; /TODO/
+      ; /考虑stateless component的情况/
     const componentInstance = new Component(this._currentElement.props)
-    this._instance
+    this._instance = componentInstance
+
+    RscInstanceMap.set(componentInstance, this)
+
+    const markup = this.performInitialMount(ctx)
   }
 
   receiveComponent(nextElement: Element) { }
 
   performUpdateIfNecessary() { }
+
+  performInitialMount(ctx: Ctx) {
+    const inst = this._instance
+    if (inst.componentWillMount) {
+      inst.componentWillMount()
+    }
+    const renderedElement = inst.render() as Element
+    const child = instantiateRscComponent(renderedElement)
+    this._renderedComponent = child
+
+    return RscReconciler.mountComponent(child, ctx)
+  }
 }
 
 function drawRootComponent(element: JSX.Element, ctx: Ctx) {
   const wrapperElement = React.createElement(TopLevelWrapper, null, element)
   const componentInstance = new RscCompositeComponentWrapper(wrapperElement)
-  // const markup = RscReconciler
+  const markup = RscReconciler.mountComponent(componentInstance, ctx)
+  // 存放ctx到markup的对应关系, 这样下次渲染的时候可以找到上次渲染的结果
+  return markup
 }
 
 const Rsc = {
@@ -65,55 +156,8 @@ const Rsc = {
     // 直接清除已经绘制的图形
     ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height)
     // 清除上一次绘制结果之后, 我们直接进行本次绘制
+    // debugger
     drawRootComponent(element, ctx)
-
-    ctx.save()
-    if (element.type === 'rect') {
-      const props: React.SVGProps<SVGRectElement> = element.props
-      const x = Number(props.x) || 0
-      const y = Number(props.y) || 0
-      const w = Number(props.width)
-      const h = Number(props.height)
-      if (props.fill) {
-        ctx.fillStyle = props.fill
-      }
-      if (props.fill !== 'none') {
-        ctx.fillRect(x, y, w, h)
-      }
-
-      if (props.stroke) {
-        ctx.strokeStyle = props.stroke
-      }
-      if (props.stroke && props.stroke !== 'none') {
-        ctx.strokeRect(x, y, w, h)
-      }
-    } else if (element.type === 'g') {
-      const props: React.SVGProps<SVGGElement> = element.props
-      const svgMatrix = parseSvgTransform(props.transform)
-
-      transformMatrix(ctx, svgMatrix)
-      React.Children.forEach(element.props.children,
-        (child: JSX.Element) => Rsc.draw(child, ctx))
-    } else if (element.type === 'path') {
-      const props: React.SVGProps<SVGGElement> = element.props
-
-      if (props.fill) {
-        ctx.fillStyle = props.fill
-      }
-      ctx.fill(new Path2D(props.d as any))
-    } else if (typeof element.type === 'function') {
-      if (element.type.prototype instanceof React.Component) {
-        // this.draw(element.type.prototype.render.call(element))
-        // !!!! TODO !!!!
-        Rsc.draw((element as any)._owner._instance.render(), ctx)
-      } else {
-        // stateless function component
-        Rsc.draw((element.type as React.SFC)(element.props), ctx)
-      }
-    } else {
-      console.warn('unknown element', element)
-    }
-    ctx.restore()
   },
 }
 

@@ -10,3 +10,5 @@ interface Matrix {
 interface CanvasRenderingContext2D {
   fill(path2d: Path2D): void
 }
+
+type Ctx = CanvasRenderingContext2D
