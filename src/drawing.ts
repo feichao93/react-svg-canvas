@@ -19,8 +19,19 @@ export function rect(ctx: Ctx, props: React.SVGProps<SVGRectElement>) {
 }
 
 export function path(ctx: Ctx, props: React.SVGProps<SVGRectElement>) {
+  const path2d = new Path2D(props.d as any)
+
   if (props.fill) {
     ctx.fillStyle = props.fill
   }
-  ctx.fill(new Path2D(props.d as any))
+  if (props.fill !== 'none') {
+    ctx.fill(path2d)
+  }
+
+  if (props.stroke) {
+    ctx.strokeStyle = props.stroke
+  }
+  if (props.stroke && props.stroke !== 'none') {
+    ctx.stroke(path2d)
+  }
 }
