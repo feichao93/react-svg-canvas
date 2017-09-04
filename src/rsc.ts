@@ -53,6 +53,9 @@ const RscReconciler = {
   receiveComponent(internalInstance: InternalComponent, nextElement: Element) {
     internalInstance.receiveComponent(nextElement)
   },
+  unmountComponent(internalInstance: InternalComponent) {
+    // TODO
+  },
 }
 
 function instantiateRscComponent(element: Element): InternalComponent {
@@ -63,11 +66,20 @@ function instantiateRscComponent(element: Element): InternalComponent {
   }
 }
 
+function shouldUpdateRscComponent(prevElement: Element, nextElement: Element) {
+  // 在Rsc里面, element都是object, 我们判断一下type和key属性是否相等就可以决定是'更新'/'卸载/重新装载'组件了
+  return prevElement.type === nextElement.type
+    && prevElement.key === nextElement.key
+}
+
+interface Markup {
+  markup: boolean
+}
 
 interface InternalComponent {
   ctx: Ctx
   _currentElement: Element
-  mountComponent(ctx: Ctx): void
+  mountComponent(ctx: Ctx): Markup
   receiveComponent(nextElement: JSX.Element): void
 }
 
@@ -110,7 +122,8 @@ class RscDOMComponent implements InternalComponent {
 
     ctx.restore()
 
-    return /* 返回一个代表mount结果的值 */
+    /* 返回一个代表mount结果的值 */
+    return { markup: true }
   }
 
   receiveComponent(nextElement: JSX.Element) {
@@ -147,7 +160,7 @@ class RscDOMComponent implements InternalComponent {
 }
 
 class RscCompositeComponentWrapper implements InternalComponent {
-  private _rendering = false
+  // private _rendering = false
   ctx: Ctx = null
   _pendingRscPartialState: any[] = []
   _currentElement: Element
@@ -206,18 +219,26 @@ class RscCompositeComponentWrapper implements InternalComponent {
   }
 
   updateComponent(prevElement: Element, nextElement: Element) {
-    this._rendering = true
-    const nextProps = prevElement.props
+    // this._rendering = true
     const inst = this._instance
 
-    const willReceive = prevElement !== nextElement
+    const prevProps = prevElement.props
+    const prevState = Object.assign({}, inst.state)
+    const prevContext = inst.context
 
+    const nextProps = nextElement.props
+    const nextContext = null as null /* TODO */
+
+    const willReceive = prevElement !== nextElement
     if (willReceive && inst.componentWillReceiveProps) {
       // TODO 在这里生命周期里面 调用setState会直接改变组件的state且不需要额外的render
       inst.componentWillReceiveProps(nextProps, null)
     }
 
-    // 注意:  这里不需要shouldComponentUpdate  反正总是需要更新的
+    // 注意:  这里不需要shouldComponentUpdate  canvas都是进行重新绘制的
+    if (inst.shouldComponentUpdate) {
+      console.warn('In react-svg-canvas, lifecycle method `shouldComponentUpdate` is skipped')
+    }
 
     const nextState = this._processPendingState()
 
@@ -226,10 +247,26 @@ class RscCompositeComponentWrapper implements InternalComponent {
     inst.props = nextProps
     inst.state = nextState
 
-    const nextRenderedElement = inst.render() as Element
-    RscReconciler.receiveComponent(this._renderedComponent, nextRenderedElement)
+    if (inst.componentWillUpdate) {
+      inst.componentWillUpdate(nextProps, nextState, nextContext)
+    }
 
-    this._rendering = false
+    const prevRenderedComponent = this._renderedComponent
+    const nextRenderedElement = inst.render() as Element
+    if (shouldUpdateRscComponent(prevRenderedComponent._currentElement, nextRenderedElement)) {
+      RscReconciler.receiveComponent(this._renderedComponent, nextRenderedElement)
+      if (inst.componentDidUpdate) {
+        inst.componentDidUpdate(prevProps, prevState, prevContext) // TODO
+      }
+    } else {
+      // 已经是不同的两个东西了, 需要进行重新渲染
+      RscReconciler.unmountComponent(this._renderedComponent)
+      const nextChild = instantiateRscComponent(nextElement)
+      this._renderedComponent = nextChild
+      RscReconciler.mountComponent(nextChild, this.ctx)
+    }
+
+    // this._rendering = false
   }
 
   private _processPendingState() {
