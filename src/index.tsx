@@ -1,13 +1,18 @@
 import './preloaded'
 import * as React from 'react'
+import * as ReactDOM from 'react-dom'
 import Rsc from './rsc'
 import { range } from './utils'
 import { BrickWall, SteelWall } from './testElements'
 
+const container = document.querySelector('#container')
 const canvasElement = document.querySelector('canvas')
 const ctx = canvasElement.getContext('2d')
 
-class Test extends React.PureComponent {
+let count = 0
+let sum = 0
+
+class Test extends React.Component {
   state = {
     x: 16,
     y: 16,
@@ -15,44 +20,51 @@ class Test extends React.PureComponent {
 
   componentDidMount() {
     console.log('did-mount')
-
-    requestAnimationFrame(this.addX)
+    requestAnimationFrame(this.move)
   }
 
-  addX = () => {
-    this.setState({ x: this.state.x + 1, y: this.state.y + 0.5 })
-    requestAnimationFrame(this.addX)
+  move = () => {
+    const start = performance.now()
+    this.setState({ x: this.state.x + 1, y: this.state.y + 1 }, () => {
+      count++
+      const end = performance.now()
+      sum += end - start
+    })
+    if (count < 100) {
+      requestAnimationFrame(this.move)
+    } else {
+      console.log('count:', count)
+      console.log('sum:', sum)
+    }
   }
 
   render() {
     const { x, y } = this.state
     return (
-      <g role="brickwall" transform={`translate(${x}, ${y})scale(8)`}>
-        {range(8).map(x =>
-          range(8).map(y =>
-            <BrickWall x={4 * x} y={4 * y} />
-          )
+      <g role="brickwall" transform={`translate(${x}, ${y})scale(2)`}>
+        {range(20).map(x =>
+          range(20).map(y => {
+            return Math.random() < 0.5 ?
+              <BrickWall x={4 * x} y={4 * y} />
+              : null
+          })
         )}
       </g>
     )
   }
 }
 
-// Rsc.draw(
-//   <Test />,
-//   ctx,
-// )
+function render(element: JSX.Element) {
+  Rsc.draw(element, ctx)
 
-Rsc.draw(
-  <g transform="scale(8)">
-    <SteelWall x={4} y={4} />
-    <SteelWall x={12} y={4} />
-    <SteelWall x={20} y={4} />
-    <SteelWall x={28} y={4} />
-    <SteelWall x={4} y={20} />
-    <SteelWall x={12} y={20} />
-    <SteelWall x={20} y={20} />
-    <SteelWall x={28} y={20} />
-  </g>,
-  ctx,
+  ReactDOM.render(
+    <svg width={800} height={400}>
+      {element}
+    </svg>,
+    container,
+  )
+}
+
+render(
+  <Test />
 )

@@ -7,6 +7,7 @@ import {
 import { parseSvgTransform } from './utils'
 
 type Element = JSX.Element
+type SetStateCallback = () => void
 
 declare module 'react' {
   interface Component {
@@ -17,6 +18,8 @@ declare module 'react' {
 declare global {
   interface CanvasRenderingContext2D {
     __rscComponentInstance: RscCompositeComponentWrapper
+    __redrawScheduled: boolean
+    __pendingSetStateCallbacks: SetStateCallback[]
   }
 }
 
@@ -54,7 +57,7 @@ const RscReconciler = {
     internalInstance.receiveComponent(nextElement)
   },
   unmountComponent(internalInstance: InternalComponent) {
-    // TODO
+    internalInstance.unmountComponent()
   },
 }
 
@@ -81,6 +84,8 @@ interface InternalComponent {
   _currentElement: Element
   mountComponent(ctx: Ctx): Markup
   receiveComponent(nextElement: JSX.Element): void
+  unmountComponent(): void
+  draw(): void
 }
 
 class RscDOMComponent implements InternalComponent {
@@ -93,8 +98,8 @@ class RscDOMComponent implements InternalComponent {
     this._currentElement = element
   }
 
-  mountComponent(ctx: Ctx) {
-    this.ctx = ctx
+  draw() {
+    const ctx = this.ctx
     const element = this._currentElement
 
     ctx.save()
@@ -110,6 +115,15 @@ class RscDOMComponent implements InternalComponent {
       drawing.path(ctx, element.props)
     }
 
+    this._renderedChildren.forEach(child => child.draw())
+
+    ctx.restore()
+  }
+
+  mountComponent(ctx: Ctx) {
+    this.ctx = ctx
+    const element = this._currentElement
+
     if (element.props.children) {
       const children = React.Children.toArray(element.props.children) as Element[]
 
@@ -119,48 +133,58 @@ class RscDOMComponent implements InternalComponent {
         this._renderedChildren.push(child)
       })
     }
-
-    ctx.restore()
 
     /* 返回一个代表mount结果的值 */
     return { markup: true }
   }
 
   receiveComponent(nextElement: JSX.Element) {
+    const prevElement = this._currentElement
     this._currentElement = nextElement
-    const element = nextElement
-    const ctx = this.ctx
 
-    ctx.save()
+    const prevChildElements = React.Children.toArray(prevElement.props.children) as Element[]
 
-    if (element.props.transform) {
-      const svgTransformMatrix = parseSvgTransform(element.props.transform)
-      transformMatrix(ctx, svgTransformMatrix)
+    const prevRenderedComponentByKey: { [key: string]: InternalComponent } = {}
+    for (const prevRenderedComponent of this._renderedChildren) {
+      prevRenderedComponentByKey[prevRenderedComponent._currentElement.key] = prevRenderedComponent
     }
 
-    if (element.type === 'rect') {
-      drawing.rect(ctx, element.props)
-    } else if (element.type === 'path') {
-      drawing.path(ctx, element.props)
+    const nextChildElements = React.Children.toArray(nextElement.props.children) as Element[]
+
+    const nextRenderedChildren: InternalComponent[] = []
+
+    for (const nextChildElement of nextChildElements) {
+      const prevChildComponent = prevRenderedComponentByKey[nextChildElement.key]
+      if (prevChildComponent != null) {
+        RscReconciler.receiveComponent(prevChildComponent, nextChildElement)
+        nextRenderedChildren.push(prevChildComponent)
+      } else {
+        const newChildComponent = instantiateRscComponent(nextChildElement)
+        RscReconciler.mountComponent(newChildComponent, this.ctx)
+        nextRenderedChildren.push(newChildComponent)
+      }
+    }
+    const nextChildrenKeySet = new Set(nextChildElements.map(element => element.key))
+    for (const prevChildElement of prevChildElements) {
+      if (!nextChildrenKeySet.has(prevChildElement.key)) {
+        RscReconciler.unmountComponent(prevRenderedComponentByKey[prevChildElement.key])
+      }
     }
 
-    if (element.props.children) {
-      const children = React.Children.toArray(element.props.children) as Element[]
-      // TODO LAST-EDIT 
-      // 这里需要使用DIFF算法来确定 是 unmount+mount 还是 update
-      children.forEach(childElement => {
-        const child = instantiateRscComponent(childElement)
-        child.mountComponent(ctx)
-        this._renderedChildren.push(child)
-      })
-    }
+    this._renderedChildren = nextRenderedChildren
+  }
 
-    ctx.restore()
+  unmountComponent() {
+    this._renderedChildren.forEach(child => child.unmountComponent())
+
+    this._currentElement = null
+    this._renderedChildren = null
+    this.ctx = null
+    // 等待root重新绘制
   }
 }
 
 class RscCompositeComponentWrapper implements InternalComponent {
-  // private _rendering = false
   ctx: Ctx = null
   _pendingRscPartialState: any[] = []
   _currentElement: Element
@@ -169,6 +193,10 @@ class RscCompositeComponentWrapper implements InternalComponent {
 
   constructor(element: Element) {
     this._currentElement = element
+  }
+
+  draw() {
+    this._renderedComponent.draw()
   }
 
   mountComponent(ctx: Ctx) {
@@ -192,9 +220,14 @@ class RscCompositeComponentWrapper implements InternalComponent {
     if (inst.componentWillMount) {
       inst.componentWillMount()
     }
-    const markup = this.performInitialMount(ctx)
+
+    const renderedElement = inst.render() as Element
+    const child = instantiateRscComponent(renderedElement)
+    this._renderedComponent = child
+
+    const markup = RscReconciler.mountComponent(child, ctx)
+
     if (inst.componentDidMount) {
-      // TODO did-mount在这里是否调用就可以吗?  还是需要等待某个事件?
       inst.componentDidMount()
     }
 
@@ -208,18 +241,7 @@ class RscCompositeComponentWrapper implements InternalComponent {
     this.updateComponent(prevElement, nextElement)
   }
 
-  performInitialMount(ctx: Ctx) {
-    const inst = this._instance
-
-    const renderedElement = inst.render() as Element
-    const child = instantiateRscComponent(renderedElement)
-    this._renderedComponent = child
-
-    return RscReconciler.mountComponent(child, ctx)
-  }
-
-  updateComponent(prevElement: Element, nextElement: Element) {
-    // this._rendering = true
+  private updateComponent(prevElement: Element, nextElement: Element) {
     const inst = this._instance
 
     const prevProps = prevElement.props
@@ -227,11 +249,11 @@ class RscCompositeComponentWrapper implements InternalComponent {
     const prevContext = inst.context
 
     const nextProps = nextElement.props
-    const nextContext = null as null /* TODO */
+    const nextContext = null as null /* TODO 实现context相关机制 */
 
     const willReceive = prevElement !== nextElement
     if (willReceive && inst.componentWillReceiveProps) {
-      // TODO 在这里生命周期里面 调用setState会直接改变组件的state且不需要额外的render
+      console.warn('In react-svg-canvas, calling `setState` in `shouldComponentUpdate` will trigger a re-render because I have not implement it...')
       inst.componentWillReceiveProps(nextProps, null)
     }
 
@@ -242,7 +264,6 @@ class RscCompositeComponentWrapper implements InternalComponent {
 
     const nextState = this._processPendingState()
 
-    // this._performComponentUpdate(nextElement, nextProps, nextState)
     this._currentElement = nextElement
     inst.props = nextProps
     inst.state = nextState
@@ -256,7 +277,7 @@ class RscCompositeComponentWrapper implements InternalComponent {
     if (shouldUpdateRscComponent(prevRenderedComponent._currentElement, nextRenderedElement)) {
       RscReconciler.receiveComponent(this._renderedComponent, nextRenderedElement)
       if (inst.componentDidUpdate) {
-        inst.componentDidUpdate(prevProps, prevState, prevContext) // TODO
+        inst.componentDidUpdate(prevProps, prevState, prevContext)
       }
     } else {
       // 已经是不同的两个东西了, 需要进行重新渲染
@@ -265,8 +286,21 @@ class RscCompositeComponentWrapper implements InternalComponent {
       this._renderedComponent = nextChild
       RscReconciler.mountComponent(nextChild, this.ctx)
     }
+  }
 
-    // this._rendering = false
+  unmountComponent() {
+    this._renderedComponent.unmountComponent()
+    const inst = this._instance
+    if (inst.componentWillUnmount) {
+      inst.componentWillUnmount()
+    }
+
+    this._currentElement = null
+    this._instance = null
+    this._pendingRscPartialState = null
+    this._renderedComponent = null
+    this.ctx = null
+    // 等待root重新绘制
   }
 
   private _processPendingState() {
@@ -292,18 +326,20 @@ class RscCompositeComponentWrapper implements InternalComponent {
   }
 }
 
-function rscSetState(this: PublicComponent, partialState: any) {
+function rscSetState(this: PublicComponent, partialState: any, callback: () => void) {
   const internalComponent = RscInstanceMap.get(this)
   internalComponent._pendingRscPartialState.push(partialState)
   RscReconciler.receiveComponent(internalComponent, internalComponent._currentElement)
+  schedualRedrawRootComponent(internalComponent, callback)
 }
 
-function drawRootComponent(element: JSX.Element, ctx: Ctx) {
+function mountRootComponent(element: JSX.Element, ctx: Ctx) {
   const wrapperElement = React.createElement(TopLevelWrapper, null, element)
   const componentInstance = new RscCompositeComponentWrapper(wrapperElement)
   const markup = RscReconciler.mountComponent(componentInstance, ctx)
   ctx.__rscComponentInstance = componentInstance
   // 存放ctx到markup的对应关系, 这样下次渲染的时候可以找到上次渲染的结果
+  schedualRedrawRootComponent(componentInstance)
   return markup
 }
 
@@ -311,15 +347,37 @@ function updateRootComponent(prevComponent: InternalComponent, nextElement: Elem
   RscReconciler.receiveComponent(prevComponent, nextElement)
 }
 
+function schedualRedrawRootComponent(componentInstance: InternalComponent, callback?: SetStateCallback) {
+  const ctx = componentInstance.ctx
+  if (callback) {
+    ctx.__pendingSetStateCallbacks.push(callback)
+  }
+  if (!ctx.__redrawScheduled) {
+    ctx.__redrawScheduled = true
+    if (componentInstance) {
+      Promise.resolve().then(() => {
+        const ctx = componentInstance.ctx
+        // console.log('clearing canvas...')
+        // 直接清除已经绘制的图形
+        ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height)
+
+        componentInstance.draw()
+        ctx.__redrawScheduled = false
+        const callbacks = ctx.__pendingSetStateCallbacks
+        ctx.__pendingSetStateCallbacks = []
+        if (callbacks) {
+          callbacks.forEach(cb => cb())
+        }
+      })
+    }
+  }
+}
+
 const Rsc = {
   draw(element: JSX.Element, ctx: Ctx) {
     const prevComponentInstance = ctx.__rscComponentInstance
     if (prevComponentInstance == null) {
-      console.log('clearing canvas...')
-      // 直接清除已经绘制的图形
-      ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height)
-      // 清除上一次绘制结果之后, 我们直接进行本次绘制
-      return drawRootComponent(element, ctx)
+      return mountRootComponent(element, ctx)
     } else {
       return updateRootComponent(prevComponentInstance, element)
     }
