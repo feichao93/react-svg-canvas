@@ -1,13 +1,18 @@
-import './preloaded'
 import * as React from 'react'
 import * as ReactDOM from 'react-dom'
-import Rsc from './rsc'
-import { range } from './utils'
+import Svg from './rsc/Svg'
 import { BrickWall, SteelWall } from './testElements'
 
-const container = document.querySelector('#container')
-const canvasElement = document.querySelector('canvas')
-const ctx = canvasElement.getContext('2d')
+function range(end: number) {
+  const result: number[] = []
+  for (let i = 0; i < end; i++) {
+    result.push(i)
+  }
+  return result
+}
+
+const container1 = document.querySelector('#container-1')
+const container2 = document.querySelector('#container-2')
 
 let count = 0
 let sum = 0
@@ -55,13 +60,18 @@ class Test extends React.Component {
 }
 
 function render(element: JSX.Element) {
-  Rsc.draw(element, ctx)
+  ReactDOM.render(
+    <Svg width={800} height={400}>
+      {element}
+    </Svg>,
+    container1,
+  )
 
   ReactDOM.render(
     <svg width={800} height={400}>
       {element}
     </svg>,
-    container,
+    container2,
   )
 }
 

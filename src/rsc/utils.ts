@@ -113,11 +113,3 @@ export function parseSvgTransform(s: string) {
   cache.set(s, matrix)
   return matrix
 }
-
-export function range(end: number) {
-  const result: number[] = []
-  for (let i = 0; i < end; i++) {
-    result.push(i)
-  }
-  return result
-}
