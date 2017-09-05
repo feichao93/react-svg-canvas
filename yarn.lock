@@ -3169,6 +3169,10 @@ supports-color@^4.2.1:
   dependencies:
     has-flag "^2.0.0"
 
+svg-transform-parser@^0.0.1:
+  version "0.0.1"
+  resolved "http://registry.npm.taobao.org/svg-transform-parser/download/svg-transform-parser-0.0.1.tgz#2a15a3d1ab30b449dc49f8cdce1640c4def52d1d"
+
 tapable@^0.2.5, tapable@^0.2.7:
   version "0.2.8"
   resolved "http://registry.npm.taobao.org/tapable/download/tapable-0.2.8.tgz#99372a5c999bf2df160afc0d74bed4f47948cd22"

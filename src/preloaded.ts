@@ -1,4 +1,4 @@
-interface Matrix {
+interface SvgTransformMatrix {
   a: number
   b: number
   c: number

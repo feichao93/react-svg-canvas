@@ -45,7 +45,7 @@ const RscInstanceMap = {
   },
 }
 
-function transformMatrix(ctx: Ctx, m: Matrix) {
+function transformMatrix(ctx: Ctx, m: SvgTransformMatrix) {
   ctx.transform(m.a, m.b, m.c, m.d, m.e, m.f)
 }
 
@@ -62,17 +62,29 @@ const RscReconciler = {
 }
 
 function instantiateRscComponent(element: Element): InternalComponent {
-  if (typeof element.type === 'string') {
+  if (element == null) {
+    return new RscEmptyComponent(element)
+  } else if (typeof element.type === 'string') {
     return new RscDOMComponent(element)
   } else if (typeof element.type === 'function') {
     return new RscCompositeComponentWrapper(element)
+  } else {
+    console.warn('Rsc only accecpts null/SVG or components that renders null/SVG, other elements will be ignored.')
+    return new RscEmptyComponent(element)
   }
 }
 
+/** 判断从prevElement到nextElement是否可以通过"更新"的方式进行转变
+ * 该函数返回false代表着 我们需要卸载原来的组件, 然后加载新的组件
+ * 注意在Rsc里面, element都是null或object, 不会出现number或string的情况
+ */
 function shouldUpdateRscComponent(prevElement: Element, nextElement: Element) {
-  // 在Rsc里面, element都是object, 我们判断一下type和key属性是否相等就可以决定是'更新'/'卸载/重新装载'组件了
-  return prevElement.type === nextElement.type
-    && prevElement.key === nextElement.key
+  if (prevElement != null && nextElement != null) {
+    return prevElement.type === nextElement.type
+      && prevElement.key === nextElement.key
+  } else {
+    return false
+  }
 }
 
 interface Markup {
@@ -88,10 +100,33 @@ interface InternalComponent {
   draw(): void
 }
 
+class RscEmptyComponent implements InternalComponent {
+  ctx: Ctx = null
+  _currentElement: Element
+
+  constructor(element: Element) {
+    this._currentElement = element
+  }
+
+  mountComponent(ctx: Ctx): Markup {
+    console.log('mount-empty-component')
+    this.ctx = ctx
+    return { markup: true }
+  }
+  receiveComponent(nextElement: JSX.Element) {
+    this._currentElement = nextElement
+  }
+  unmountComponent() {
+    this.ctx = null
+    this._currentElement = null
+  }
+  draw() {
+  }
+}
+
 class RscDOMComponent implements InternalComponent {
   ctx: Ctx = null
   _currentElement: Element
-  /* SFC */
   _renderedChildren: InternalComponent[] = []
 
   constructor(element: Element) {
@@ -142,32 +177,33 @@ class RscDOMComponent implements InternalComponent {
     const prevElement = this._currentElement
     this._currentElement = nextElement
 
-    const prevChildElements = React.Children.toArray(prevElement.props.children) as Element[]
-
     const prevRenderedComponentByKey: { [key: string]: InternalComponent } = {}
     for (const prevRenderedComponent of this._renderedChildren) {
       prevRenderedComponentByKey[prevRenderedComponent._currentElement.key] = prevRenderedComponent
     }
 
+    /** reusedComponentSet用来记录哪些internal-instance被复用了 */
+    const reusedComponentSet = new Set<InternalComponent>()
     const nextChildElements = React.Children.toArray(nextElement.props.children) as Element[]
 
     const nextRenderedChildren: InternalComponent[] = []
 
     for (const nextChildElement of nextChildElements) {
       const prevChildComponent = prevRenderedComponentByKey[nextChildElement.key]
-      if (prevChildComponent != null) {
+      if (prevChildComponent && shouldUpdateRscComponent(prevChildComponent._currentElement, nextChildElement)) {
         RscReconciler.receiveComponent(prevChildComponent, nextChildElement)
         nextRenderedChildren.push(prevChildComponent)
+        reusedComponentSet.add(prevChildComponent)
       } else {
         const newChildComponent = instantiateRscComponent(nextChildElement)
         RscReconciler.mountComponent(newChildComponent, this.ctx)
         nextRenderedChildren.push(newChildComponent)
       }
     }
-    const nextChildrenKeySet = new Set(nextChildElements.map(element => element.key))
-    for (const prevChildElement of prevChildElements) {
-      if (!nextChildrenKeySet.has(prevChildElement.key)) {
-        RscReconciler.unmountComponent(prevRenderedComponentByKey[prevChildElement.key])
+
+    for (const prevRenderedComponent of this._renderedChildren) {
+      if (!reusedComponentSet.has(prevRenderedComponent)) {
+        RscReconciler.unmountComponent(prevRenderedComponent)
       }
     }
 
@@ -231,7 +267,7 @@ class RscCompositeComponentWrapper implements InternalComponent {
       inst.componentDidMount()
     }
 
-    this.injectRscSetState(ctx)
+    this.injectRscUpdaters(ctx)
 
     return markup
   }
@@ -262,7 +298,7 @@ class RscCompositeComponentWrapper implements InternalComponent {
       console.warn('In react-svg-canvas, lifecycle method `shouldComponentUpdate` is skipped')
     }
 
-    const nextState = this._processPendingState()
+    const nextState = this.processPendingState()
 
     this._currentElement = nextElement
     inst.props = nextProps
@@ -303,7 +339,7 @@ class RscCompositeComponentWrapper implements InternalComponent {
     // 等待root重新绘制
   }
 
-  private _processPendingState() {
+  private processPendingState() {
     const inst = this._instance
     let nextState = inst.state
     for (const partialState of this._pendingRscPartialState) {
@@ -317,8 +353,8 @@ class RscCompositeComponentWrapper implements InternalComponent {
     return nextState
   }
 
-  /* 修改setState的处理逻辑 */
-  private injectRscSetState(ctx: Ctx) {
+  /* 修改组件的setState/replaceState等相关函数 */
+  private injectRscUpdaters() {
     const inst: any = this._instance
     if (inst.setState) {
       inst.setState = rscSetState
@@ -326,11 +362,14 @@ class RscCompositeComponentWrapper implements InternalComponent {
   }
 }
 
+/** 用于代替React的setState函数
+ *  该setState会调用receiveComponent来更新自己的state以及其子孙节点的props/state
+ *  然后调用scheduleRedrawRootComponent触发canvas的重新绘制 */
 function rscSetState(this: PublicComponent, partialState: any, callback: () => void) {
   const internalComponent = RscInstanceMap.get(this)
   internalComponent._pendingRscPartialState.push(partialState)
   RscReconciler.receiveComponent(internalComponent, internalComponent._currentElement)
-  schedualRedrawRootComponent(internalComponent, callback)
+  scheduleRedrawRootComponent(internalComponent, callback)
 }
 
 function mountRootComponent(element: JSX.Element, ctx: Ctx) {
@@ -339,15 +378,11 @@ function mountRootComponent(element: JSX.Element, ctx: Ctx) {
   const markup = RscReconciler.mountComponent(componentInstance, ctx)
   ctx.__rscComponentInstance = componentInstance
   // 存放ctx到markup的对应关系, 这样下次渲染的时候可以找到上次渲染的结果
-  schedualRedrawRootComponent(componentInstance)
+  scheduleRedrawRootComponent(componentInstance)
   return markup
 }
 
-function updateRootComponent(prevComponent: InternalComponent, nextElement: Element) {
-  RscReconciler.receiveComponent(prevComponent, nextElement)
-}
-
-function schedualRedrawRootComponent(componentInstance: InternalComponent, callback?: SetStateCallback) {
+function scheduleRedrawRootComponent(componentInstance: InternalComponent, callback?: SetStateCallback) {
   const ctx = componentInstance.ctx
   if (callback) {
     ctx.__pendingSetStateCallbacks.push(callback)
@@ -379,7 +414,8 @@ const Rsc = {
     if (prevComponentInstance == null) {
       return mountRootComponent(element, ctx)
     } else {
-      return updateRootComponent(prevComponentInstance, element)
+      // update root component
+      RscReconciler.receiveComponent(prevComponentInstance, element)
     }
   },
 }

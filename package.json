@@ -8,7 +8,8 @@
     "start": "webpack-dev-server"
   },
   "dependencies": {
-    "react": "^15.6.1"
+    "react": "^15.6.1",
+    "svg-transform-parser": "^0.0.1"
   },
   "devDependencies": {
     "@types/node": "^8.0.26",
