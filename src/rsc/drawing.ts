@@ -1,5 +1,3 @@
-import { parseSvgTransform } from './utils'
-
 export function draw(ctx: Ctx, element: JSX.Element) {
   if (element.type === 'rect') {
     return rect(ctx, element.props)
@@ -34,24 +32,5 @@ export function path(ctx: Ctx, props: React.SVGProps<SVGRectElement>) {
 
   if (props.stroke && props.stroke !== 'none') {
     ctx.stroke(path2d)
-  }
-}
-
-export function processTransform(ctx: Ctx, transform: string) {
-  if (transform) {
-    const m = parseSvgTransform(transform)
-    ctx.transform(m.a, m.b, m.c, m.d, m.e, m.f)
-  }
-}
-
-export function processFill(ctx: Ctx, fill: string) {
-  if (fill) {
-    ctx.fillStyle = fill
-  }
-}
-
-export function processStroke(ctx: Ctx, stroke: string) {
-  if (stroke) {
-    ctx.strokeStyle = stroke
   }
 }
