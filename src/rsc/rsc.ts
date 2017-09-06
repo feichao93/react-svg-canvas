@@ -5,7 +5,6 @@ import {
   ComponentClass as PublicComponentClass,
   Component as PublicComponent,
 } from 'react'
-import { parseSvgTransform } from './utils'
 
 type Element = JSX.Element
 type SetStateCallback = () => void
@@ -40,10 +39,6 @@ const RscInstanceMap = {
   get(key: PublicComponent) {
     return (key as any).__rscInternalInstance
   },
-}
-
-function transformMatrix(ctx: Ctx, m: SvgTransformMatrix) {
-  ctx.transform(m.a, m.b, m.c, m.d, m.e, m.f)
 }
 
 const RscReconciler = {
@@ -129,6 +124,7 @@ class RscEmptyComponent implements InternalComponent {
     this.ctx = null
     this._currentElement = null
   }
+
   draw() {
   }
 }
@@ -148,16 +144,12 @@ class RscDOMComponent implements InternalComponent {
 
     ctx.save()
 
-    if (element.props.transform) {
-      const svgTransformMatrix = parseSvgTransform(element.props.transform)
-      transformMatrix(ctx, svgTransformMatrix)
-    }
+    const { transform, fill, stroke } = element.props
+    drawing.processTransform(ctx, transform)
+    drawing.processFill(ctx, fill)
+    drawing.processStroke(ctx, stroke)
 
-    if (element.type === 'rect') {
-      drawing.rect(ctx, element.props)
-    } else if (element.type === 'path') {
-      drawing.path(ctx, element.props)
-    }
+    drawing.draw(ctx, element)
 
     this._renderedChildren.forEach(child => child.draw())
 
@@ -443,7 +435,7 @@ function scheduleRedrawRootComponent(componentInstance: InternalComponent, callb
   if (!ctx.__redrawScheduled) {
     ctx.__redrawScheduled = true
 
-    Promise.resolve().then(() => {
+    const reconciliationTask = () => {
       // 清除已经绘制的图形
       ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height)
 
@@ -461,7 +453,8 @@ function scheduleRedrawRootComponent(componentInstance: InternalComponent, callb
       if (callbacks) {
         callbacks.forEach(cb => cb())
       }
-    })
+    }
+    setTimeout(() => requestAnimationFrame(reconciliationTask), 0)
   }
 }
 
