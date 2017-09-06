@@ -12,12 +12,6 @@ type SetStateCallback = () => void
 
 const emptyObject = {}
 
-declare module 'react' {
-  interface Component {
-    __rscInternalInstance: RscCompositeComponent
-  }
-}
-
 declare global {
   interface CanvasRenderingContext2D {
     __rscRootComponentInstance: RscCompositeComponent
@@ -41,10 +35,10 @@ class TopLevelWrapper extends React.Component {
 
 const RscInstanceMap = {
   set(key: PublicComponent, value: RscCompositeComponent) {
-    key.__rscInternalInstance = value
+    (key as any).__rscInternalInstance = value
   },
   get(key: PublicComponent) {
-    return key.__rscInternalInstance
+    return (key as any).__rscInternalInstance
   },
 }
 
@@ -64,10 +58,14 @@ const RscReconciler = {
   },
 }
 
+let warned = false
 function warnIfHasShouldComponentUpdate(component: PublicComponent) {
-  // 注意: Rsc不需要shouldComponentUpdate  canvas都是进行重新绘制的
-  if (component.shouldComponentUpdate) {
-    console.warn('In react-svg-canvas, lifecycle method `shouldComponentUpdate` is skipped')
+  if (!warned) {
+    warned = true
+    // 注意: Rsc不需要shouldComponentUpdate  canvas都是进行重新绘制的
+    if (component.shouldComponentUpdate) {
+      console.warn('In react-svg-canvas, lifecycle method `shouldComponentUpdate` is skipped')
+    }
   }
 }
 
@@ -79,7 +77,7 @@ function instantiateRscComponent(element: Element): InternalComponent {
   } else if (typeof element.type === 'function') {
     return new RscCompositeComponent(element)
   } else {
-    console.warn('Rsc only accecpts null/SVG or components that renders null/SVG, other elements will be ignored.')
+    // console.warn('Rsc only accecpts null/SVG or components that renders null/SVG, other elements will be ignored.')
     return new RscEmptyComponent(element)
   }
 }
@@ -119,7 +117,6 @@ class RscEmptyComponent implements InternalComponent {
   }
 
   mountComponent(ctx: Ctx, context: any): Markup {
-    console.log('mount-empty-component')
     this.ctx = ctx
     return { markup: true }
   }
@@ -317,8 +314,8 @@ class RscCompositeComponent implements InternalComponent {
 
     const willReceive = prevElement !== nextElement
     if (willReceive && inst.componentWillReceiveProps) {
-      console.warn('In react-svg-canvas, calling `setState` in `shouldComponentUpdate`'
-        + ' will trigger a re-render because I have not implement it...')
+      // console.warn('In react-svg-canvas, calling `setState` in `shouldComponentUpdate`'
+      //   + ' will trigger a re-render because I have not implement it...')
       inst.componentWillReceiveProps(nextProps, nextContext)
     }
     const nextState = this.processPendingState(nextProps, nextContext)
@@ -422,14 +419,8 @@ class RscCompositeComponent implements InternalComponent {
  *  该setState会调用receiveComponent来更新自己的state以及其子孙节点的props/state
  *  然后调用scheduleRedrawRootComponent触发canvas的重新绘制 */
 function rscSetState(this: PublicComponent, partialState: any, callback: () => void) {
-  // TODO 这里根本就没有对setState做优化 0_0
   const internalComponent = RscInstanceMap.get(this)
   internalComponent._pendingRscPartialState.push(partialState)
-  RscReconciler.receiveComponent(
-    internalComponent,
-    internalComponent._currentElement,
-    internalComponent._context,
-  )
   scheduleRedrawRootComponent(internalComponent, callback)
 }
 
@@ -456,7 +447,14 @@ function scheduleRedrawRootComponent(componentInstance: InternalComponent, callb
       // 清除已经绘制的图形
       ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height)
 
-      ctx.__rscRootComponentInstance.draw()
+      const rootComponent = ctx.__rscRootComponentInstance
+      RscReconciler.receiveComponent(
+        rootComponent,
+        rootComponent._currentElement,
+        rootComponent._context,
+      )
+      rootComponent.draw()
+
       ctx.__redrawScheduled = false
       const callbacks = ctx.__pendingSetStateCallbacks
       ctx.__pendingSetStateCallbacks = null
@@ -473,8 +471,6 @@ const Rsc = {
     if (prevComponentInstance == null) {
       return mountRootComponent(element, ctx, initContext)
     } else {
-      // update root component
-      // todo ?这里context传递正确么?
       RscReconciler.receiveComponent(
         prevComponentInstance,
         element,
