@@ -1,4 +1,5 @@
 import { CSSProperties } from 'react'
+import { Ctx } from './types'
 import { parseSvgTransform } from './utils'
 
 function processTransform(ctx: Ctx, transform: string) {

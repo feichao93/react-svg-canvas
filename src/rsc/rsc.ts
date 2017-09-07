@@ -1,9 +1,9 @@
-import './types'
 import * as React from 'react'
 import {
   ComponentClass as PublicComponentClass,
   Component as PublicComponent,
 } from 'react'
+import { Ctx, InternalComponent, SetStateCallback } from './types'
 import * as drawing from './drawing'
 import processProps from './processProps'
 
@@ -162,7 +162,7 @@ class RscDOMComponent implements InternalComponent {
 
     ctx.save()
 
-    processProps(ctx, element.props)
+    processProps(ctx, element)
     drawing.draw(ctx, element)
     this._renderedChildren.forEach(child => child.draw())
 
@@ -460,6 +460,15 @@ function mountRootComponent(element: JSX.Element, ctx: Ctx, initContext: any) {
   scheduleRedrawRootComponent(componentInstance)
 }
 
+function updateRootComponent(component: RscCompositeComponent, element: Element, initContext: any) {
+  RscReconciler.receiveComponent(
+    component,
+    React.createElement(TopLevelWrapper, null, element),
+    initContext,
+  )
+  scheduleRedrawRootComponent(component)
+}
+
 function scheduleRedrawRootComponent(componentInstance: InternalComponent, callback?: SetStateCallback) {
   const ctx = componentInstance.ctx
   if (callback) {
@@ -493,16 +502,12 @@ function scheduleRedrawRootComponent(componentInstance: InternalComponent, callb
 }
 
 const Rsc = {
-  draw(element: JSX.Element, ctx: Ctx, initContext: any = emptyObject) {
-    const prevComponentInstance = ctx.__rscRootComponentInstance
-    if (prevComponentInstance == null) {
-      return mountRootComponent(element, ctx, initContext)
+  draw(element: JSX.Element, ctx: Ctx, initContext?: any) {
+    const prevRootComponent = ctx.__rscRootComponentInstance
+    if (prevRootComponent == null) {
+      mountRootComponent(element, ctx, initContext || emptyObject)
     } else {
-      RscReconciler.receiveComponent(
-        prevComponentInstance,
-        element,
-        initContext || prevComponentInstance._context,
-      )
+      updateRootComponent(prevRootComponent, element, initContext || prevRootComponent._context)
     }
   },
 }

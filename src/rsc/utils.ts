@@ -1,3 +1,5 @@
+import { SvgTransformMatrix } from './types'
+
 const svgTransformParser: SvgTransformParser = require('svg-transform-parser')
 
 interface SvgTransformParser {

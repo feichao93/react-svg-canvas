@@ -15,12 +15,10 @@ export default class Svg extends React.Component<P> {
   refFn = (node: HTMLCanvasElement) => this.ctx = node.getContext('2d')
 
   componentDidMount() {
-    console.log('Svg did-mount')
-
     const contextFromReact = (this as any)._reactInternalInstance._context
     const transform = this.calculateTransform()
     rsc.draw(
-      <g transform={transform}>{this.props.children}</g>,
+      <g role="rsc-svg" transform={transform}>{this.props.children}</g>,
       this.ctx,
       contextFromReact,
     )
@@ -30,7 +28,7 @@ export default class Svg extends React.Component<P> {
     /* TODO BUG context的变化可能 无法传递到react-svg-canvas内 */
     const transform = this.calculateTransform()
     rsc.draw(
-      <g transform={transform}>{nextProps.children}</g>,
+      <g role="rsc-svg" transform={transform}>{nextProps.children}</g>,
       this.ctx,
     )
   }

@@ -1,3 +1,5 @@
+import { Ctx } from './types'
+
 export function draw(ctx: Ctx, element: JSX.Element) {
   if (element.type === 'rect') {
     return rect(ctx, element.props)
