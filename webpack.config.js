@@ -7,12 +7,12 @@ module.exports = {
   target: 'web',
   devtool: 'source-map',
 
-  entry: __dirname + '/src/test.tsx',
+  entry: __dirname + '/src/__tests__/index.tsx',
 
-  output: {
-    path: path.resolve(__dirname, 'build'),
-    filename: '[name].js',
-  },
+  // output: {
+  //   path: path.resolve(__dirname, 'build'),
+  //   filename: '[name].js',
+  // },
 
   resolve: {
     extensions: ['.js', '.jsx', '.ts', '.tsx'],
@@ -38,7 +38,7 @@ module.exports = {
     // new webpack.EnvironmentPlugin({ NODE_ENV: 'production' }),
     new HtmlWebpackPlugin({
       filename: 'index.html',
-      template: path.resolve(__dirname, 'src/index.html'),
+      template: path.resolve(__dirname, 'src/__tests__/index.html'),
     }),
   ],
 
