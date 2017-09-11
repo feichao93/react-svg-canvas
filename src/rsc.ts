@@ -7,6 +7,13 @@ import { Ctx, InternalComponent, SetStateCallback } from './types'
 import * as drawing from './drawing'
 import processProps from './processProps'
 
+declare module 'react' {
+  function createElement(type: 'offscreen', props: {
+    inst: PublicComponent,
+    Component: PublicComponentClass
+  }): JSX.Element;
+}
+
 type Element = JSX.Element
 
 const emptyObject = {}
@@ -50,7 +57,13 @@ function instantiateRscComponent(element: Element): InternalComponent {
   if (element == null) {
     return new RscEmptyComponent(element)
   } else if (typeof element.type === 'string') {
-    return new RscDOMComponent(element)
+    if (element.type === 'offscreen') {
+      return new RscOffScreenComponent(element)
+    } else if (element.type === 'defs') {
+      return new RscDefsComponent(element)
+    } else {
+      return new RscDOMComponent(element)
+    }
   } else if (typeof element.type === 'function') {
     return new RscCompositeComponent(element)
   } else {
@@ -96,6 +109,16 @@ function shouldUpdateRscComponent(prevElement: Element, nextElement: Element) {
   }
 }
 
+function renderInst(inst: PublicComponent, Component: PublicComponentClass) {
+  const useOffScreenCanvas = Boolean((Component as any).offScreen)
+  if (useOffScreenCanvas) {
+    constructOffScreenCanvasIfNeeded(Component)
+    return React.createElement('offscreen', { inst, Component })
+  } else {
+    return inst.render() as Element
+  }
+}
+
 /**
  * 用于进行off-screen-render的组件.
  * 该组件的主要作用在于: 调用RscOffScreenComponent#draw方法时,
@@ -108,11 +131,11 @@ class RscOffScreenComponent implements InternalComponent {
   _currentElement: Element
   _parentComponent: InternalComponent
 
-  constructor(publicComponent: any) {
+  constructor(element: any) {
     // publicComponent上面存放了我们所需要的数据
     // publicComponent._offScreenCanvas存放了已经绘制好的内容
     // publicComponent.offScreen.render是用户自定的offScreen render方法
-    this.publicComponent = publicComponent
+    this.publicComponent = element.props.Component
   }
 
   mountComponent(ctx: Ctx, context: any) {
@@ -256,7 +279,6 @@ export class RscCompositeComponent implements InternalComponent {
     const publicContext = this.processContext(context)
 
     const Component = this._currentElement.type as PublicComponentClass
-    const useOffScreenCanvas = (Component as any).offScreen
 
     let inst: PublicComponent
     if (Component.prototype && Component.prototype.isReactComponent) {
@@ -276,13 +298,8 @@ export class RscCompositeComponent implements InternalComponent {
       inst.componentWillMount()
     }
 
-    if (useOffScreenCanvas) {
-      constructOffScreenCanvasIfNeeded(Component)
-      this._renderedComponent = new RscOffScreenComponent(Component)
-    } else {
-      const renderedElement = inst.render() as Element
-      this._renderedComponent = instantiateRscComponent(renderedElement)
-    }
+    const renderedElement = renderInst(inst, Component)
+    this._renderedComponent = instantiateRscComponent(renderedElement)
 
     RscReconciler.mountComponent(
       this._renderedComponent,
@@ -342,40 +359,27 @@ export class RscCompositeComponent implements InternalComponent {
     inst.context = nextContext
 
     const prevRenderedComponent = this._renderedComponent
-    const useOffScreenCanvas = prevRenderedComponent instanceof RscOffScreenComponent
-    if (useOffScreenCanvas) {
-      // 如果使用了offScreenCanvas, 那么组件只需要更新就好了
+    const nextRenderedElement = renderInst(inst, this._currentElement.type as PublicComponentClass)
+
+    if (shouldUpdateRscComponent(prevRenderedComponent._currentElement, nextRenderedElement)) {
       RscReconciler.receiveComponent(
-        prevRenderedComponent,
-        nextElement,
-        nextContext,
-      )
+        this._renderedComponent,
+        nextRenderedElement,
+        this.processChildContext(this._context))
       if (inst.componentDidUpdate) {
         inst.componentDidUpdate(prevProps, prevState, prevContext)
       }
     } else {
-      const nextRenderedElement = inst.render() as Element
+      // 已经是不同的两个东西了, 需要进行重新渲染
+      RscReconciler.unmountComponent(this._renderedComponent)
 
-      if (shouldUpdateRscComponent(prevRenderedComponent._currentElement, nextRenderedElement)) {
-        RscReconciler.receiveComponent(
-          this._renderedComponent,
-          nextRenderedElement,
-          this.processChildContext(this._context))
-        if (inst.componentDidUpdate) {
-          inst.componentDidUpdate(prevProps, prevState, prevContext)
-        }
-      } else {
-        // 已经是不同的两个东西了, 需要进行重新渲染
-        RscReconciler.unmountComponent(this._renderedComponent)
-
-        this._renderedComponent = instantiateRscComponent(nextElement)
-        RscReconciler.mountComponent(
-          this._renderedComponent,
-          this.ctx,
-          this.processChildContext(this._context),
-        )
-        this._renderedComponent._parentComponent = this
-      }
+      this._renderedComponent = instantiateRscComponent(nextElement)
+      RscReconciler.mountComponent(
+        this._renderedComponent,
+        this.ctx,
+        this.processChildContext(this._context),
+      )
+      this._renderedComponent._parentComponent = this
     }
   }
 
@@ -438,6 +442,21 @@ export class RscCompositeComponent implements InternalComponent {
     if (inst.setState) {
       inst.setState = rscSetState
     }
+  }
+}
+
+class RscDefsComponent extends RscDOMComponent {
+  draw() {
+    const ctx = this.ctx
+    const element = this._currentElement
+
+    // todo LAST EDIT HERE
+    
+    // ctx.enterDefsMode()
+    // processProps(ctx, element)
+    // drawing.draw(ctx, element)
+    // this._renderedChildren.forEach(child => child.draw())
+    // ctx.exitDefsMode()
   }
 }
 
