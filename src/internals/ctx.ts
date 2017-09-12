@@ -1,5 +1,5 @@
-import { SetStateCallback } from './types'
-import { RscCompositeComponent } from './rsc'
+import { SetStateCallback } from '../types'
+import { RscCompositeComponent } from '../internalComponents'
 
 interface StackItem {
   fillIsNone: boolean

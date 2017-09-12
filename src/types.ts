@@ -1,31 +1,21 @@
-import Ctx from './ctx'
+import * as React from 'react'
 
 declare global {
   interface CanvasRenderingContext2D {
     fill(path2d: Path2D): void
   }
+
+  type PublicComponent = React.Component
+  type PublicComponentClass = React.ComponentClass
 }
 
-export interface SvgTransformMatrix {
-  a: number
-  b: number
-  c: number
-  d: number
-  e: number
-  f: number
+declare module 'react' {
+  function createElement(type: 'offscreen', props: {
+    inst: PublicComponent,
+    Component: PublicComponentClass
+  }): JSX.Element;
 }
 
 export interface SetStateCallback {
   (): void
-}
-
-export interface InternalComponent {
-  ctx: Ctx
-  _currentElement: JSX.Element
-  _parentComponent: InternalComponent
-
-  mountComponent(ctx: Ctx, context: any): void
-  receiveComponent(nextElement: JSX.Element, nextContext: any): void
-  unmountComponent(): void
-  draw(): void
 }

@@ -1,6 +1,6 @@
 import { CSSProperties } from 'react'
 import Ctx from './ctx'
-import { parseSvgTransform } from './utils'
+import parseSvgTransform from './parseSvgTransform'
 
 function processTransform(ctx: Ctx, transform: string) {
   if (transform) {

@@ -1,9 +1,16 @@
-import { SvgTransformMatrix } from './types'
-
 const svgTransformParser: SvgTransformParser = require('svg-transform-parser')
 
 interface SvgTransformParser {
   parse(svgTransformString: string): SvgTransformParseResult
+}
+
+interface SvgTransformMatrix {
+  a: number
+  b: number
+  c: number
+  d: number
+  e: number
+  f: number
 }
 
 interface SvgTransformParseResult {
@@ -97,7 +104,7 @@ function prepareWorkerElement() {
   return workerElement
 }
 
-export function parseSvgTransform(s: string) {
+export default function parseSvgTransform(s: string) {
   if (s == null) {
     return identMatrix
   }

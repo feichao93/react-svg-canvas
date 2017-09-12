@@ -1,6 +1,6 @@
 import * as React from 'react'
 import rsc from './rsc'
-import Ctx from './ctx'
+import Ctx from './internals/ctx'
 
 interface P {
   width: number
