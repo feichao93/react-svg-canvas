@@ -1,12 +1,8 @@
-import { RscCompositeComponent } from './rsc'
+import Ctx from './ctx'
 
 declare global {
   interface CanvasRenderingContext2D {
     fill(path2d: Path2D): void
-
-    __rscRootComponentInstance: RscCompositeComponent
-    __redrawScheduled: boolean
-    __pendingSetStateCallbacks: SetStateCallback[]
   }
 }
 
@@ -22,8 +18,6 @@ export interface SvgTransformMatrix {
 export interface SetStateCallback {
   (): void
 }
-
-export type Ctx = CanvasRenderingContext2D
 
 export interface InternalComponent {
   ctx: Ctx

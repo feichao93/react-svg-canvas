@@ -32,4 +32,3 @@ Object.keys(testsMap).map(key => {
   })
   buttonContainer.appendChild(button)
 })
-

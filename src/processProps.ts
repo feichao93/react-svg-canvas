@@ -1,5 +1,5 @@
 import { CSSProperties } from 'react'
-import { Ctx } from './types'
+import Ctx from './ctx'
 import { parseSvgTransform } from './utils'
 
 function processTransform(ctx: Ctx, transform: string) {
@@ -23,11 +23,8 @@ function processStroke(ctx: Ctx, stroke: string) {
 
 function processStyle(ctx: Ctx, style: CSSProperties) {
   if (style) {
-    if (style.visibility === 'hidden') {
-      ctx.fillStyle = 'transparent'
-    }
-    if (style.display === 'none') {
-      ctx.fillStyle = 'transparent'
+    if (style.visibility === 'hidden' || style.display === 'none') {
+      ctx.visible = false
     }
   }
 }

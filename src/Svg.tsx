@@ -1,5 +1,6 @@
 import * as React from 'react'
 import rsc from './rsc'
+import Ctx from './ctx'
 
 interface P {
   width: number
@@ -10,9 +11,11 @@ interface P {
 }
 
 export default class Svg extends React.Component<P> {
-  private ctx: CanvasRenderingContext2D = null
+  private ctx: Ctx = null
 
-  refFn = (node: HTMLCanvasElement) => this.ctx = node.getContext('2d')
+  refFn = (node: HTMLCanvasElement) => {
+    this.ctx = Ctx(node.getContext('2d'))
+  }
 
   componentDidMount() {
     const contextFromReact = (this as any)._reactInternalInstance._context

@@ -1,4 +1,4 @@
-import { Ctx } from './types'
+import Ctx from './ctx'
 
 export function draw(ctx: Ctx, element: JSX.Element) {
   if (element.type === 'rect') {
@@ -16,11 +16,11 @@ export function rect(ctx: Ctx, props: React.SVGProps<SVGRectElement>) {
   const w = Number(props.width)
   const h = Number(props.height)
 
-  if (props.fill !== 'none') {
+  if (ctx.fillStyle) {
     ctx.fillRect(x, y, w, h)
   }
 
-  if (props.stroke && props.stroke !== 'none') {
+  if (ctx.strokeStyle) {
     ctx.strokeRect(x, y, w, h)
   }
 }
@@ -28,11 +28,11 @@ export function rect(ctx: Ctx, props: React.SVGProps<SVGRectElement>) {
 export function path(ctx: Ctx, props: React.SVGProps<SVGRectElement>) {
   const path2d = new Path2D(props.d as any)
 
-  if (props.fill !== 'none') {
+  if (ctx.fillStyle) {
     ctx.fill(path2d)
   }
 
-  if (props.stroke && props.stroke !== 'none') {
+  if (ctx.strokeStyle) {
     ctx.stroke(path2d)
   }
 }

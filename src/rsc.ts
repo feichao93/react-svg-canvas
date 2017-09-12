@@ -3,9 +3,10 @@ import {
   ComponentClass as PublicComponentClass,
   Component as PublicComponent,
 } from 'react'
-import { Ctx, InternalComponent, SetStateCallback } from './types'
+import { InternalComponent, SetStateCallback } from './types'
 import * as drawing from './drawing'
 import processProps from './processProps'
+import Ctx from './ctx'
 
 declare module 'react' {
   function createElement(type: 'offscreen', props: {
@@ -88,7 +89,7 @@ function constructOffScreenCanvasIfNeeded(Component: any) {
     const internalInstance = instantiateRscComponent(offScreenContentElement)
     RscReconciler.mountComponent(
       internalInstance,
-      offScreenCanvas.getContext('2d'),
+      Ctx(offScreenCanvas.getContext('2d')),
       null,
     )
     internalInstance.draw()
@@ -451,7 +452,7 @@ class RscDefsComponent extends RscDOMComponent {
     const element = this._currentElement
 
     // todo LAST EDIT HERE
-    
+
     // ctx.enterDefsMode()
     // processProps(ctx, element)
     // drawing.draw(ctx, element)
@@ -475,7 +476,7 @@ function mountRootComponent(element: JSX.Element, ctx: Ctx, initContext: any) {
   const componentInstance = new RscCompositeComponent(wrapperElement)
   RscReconciler.mountComponent(componentInstance, ctx, initContext)
   // 将compnentInstance放在ctx.__rscRootComponentInstance中, 下次重新更新/重新加载的时候可以找到上次渲染的结果
-  ctx.__rscRootComponentInstance = componentInstance
+  ctx.rscRootComponentInstance = componentInstance
   scheduleRedrawRootComponent(componentInstance)
 }
 
@@ -491,17 +492,17 @@ function updateRootComponent(component: RscCompositeComponent, element: Element,
 function scheduleRedrawRootComponent(componentInstance: InternalComponent, callback?: SetStateCallback) {
   const ctx = componentInstance.ctx
   if (callback) {
-    ctx.__pendingSetStateCallbacks = ctx.__pendingSetStateCallbacks || []
-    ctx.__pendingSetStateCallbacks.push(callback)
+    ctx.pendingSetStateCallbacks = ctx.pendingSetStateCallbacks || []
+    ctx.pendingSetStateCallbacks.push(callback)
   }
-  if (!ctx.__redrawScheduled) {
-    ctx.__redrawScheduled = true
+  if (!ctx.redrawScheduled) {
+    ctx.redrawScheduled = true
 
     const reconciliationTask = () => {
       // 清除已经绘制的图形
       ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height)
 
-      const rootComponent = ctx.__rscRootComponentInstance
+      const rootComponent = ctx.rscRootComponentInstance
       RscReconciler.receiveComponent(
         rootComponent,
         rootComponent._currentElement,
@@ -509,9 +510,9 @@ function scheduleRedrawRootComponent(componentInstance: InternalComponent, callb
       )
       rootComponent.draw()
 
-      ctx.__redrawScheduled = false
-      const callbacks = ctx.__pendingSetStateCallbacks
-      ctx.__pendingSetStateCallbacks = null
+      ctx.redrawScheduled = false
+      const callbacks = ctx.pendingSetStateCallbacks
+      ctx.pendingSetStateCallbacks = null
       if (callbacks) {
         callbacks.forEach(cb => cb())
       }
@@ -522,7 +523,7 @@ function scheduleRedrawRootComponent(componentInstance: InternalComponent, callb
 
 const Rsc = {
   draw(element: JSX.Element, ctx: Ctx, initContext?: any) {
-    const prevRootComponent = ctx.__rscRootComponentInstance
+    const prevRootComponent = ctx.rscRootComponentInstance
     if (prevRootComponent == null) {
       mountRootComponent(element, ctx, initContext || emptyObject)
     } else {
