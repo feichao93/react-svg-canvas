@@ -1,5 +1,6 @@
-import { SetStateCallback } from '../types'
+import { SetStateCallback, ClipPathFn } from '../types'
 import { RscCompositeComponent } from '../internalComponents'
+import { noop, defaultClipPathId } from './constants'
 
 interface StackItem {
   fillIsNone: boolean
@@ -10,6 +11,7 @@ interface StackItem {
 class CanvasRenderingContext2DWrapper {
   readonly renderingContext2D: CanvasRenderingContext2D
   private stack: StackItem[] = []
+  readonly clipPathMap = new Map<string, ClipPathFn[]>()
 
   // fill === 'none'
   fillIsNone = false
@@ -24,6 +26,7 @@ class CanvasRenderingContext2DWrapper {
 
   constructor(renderingContext2D: CanvasRenderingContext2D) {
     this.renderingContext2D = renderingContext2D
+    this.clipPathMap.set(defaultClipPathId, [noop])
   }
 
   save() {
@@ -42,9 +45,6 @@ class CanvasRenderingContext2DWrapper {
     this.strokeIsNone = top.strokeIsNone
     this.visible = top.visible
   }
-
-  // enter-defs-mode
-  // exit-defs-mode
 }
 
 type Ctx = CanvasRenderingContext2DWrapper & CanvasRenderingContext2D

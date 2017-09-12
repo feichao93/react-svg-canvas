@@ -5,6 +5,8 @@ import instantiateRscComponent from '../internals/instantiateRscComponent'
 import Ctx from '../internals/ctx'
 import processProps from '../internals/processProps'
 import shouldUpdateRscComponent from '../internals/shouldUpdateRscComponent'
+import ClipPathFnArrayBuilder from '../internals/ClipPathFnArrayBuilder'
+import { defaultClipPathId } from '../internals/constants'
 import { InternalComponent } from './index'
 
 export default class RscDOMComponent implements InternalComponent {
@@ -21,13 +23,32 @@ export default class RscDOMComponent implements InternalComponent {
     const ctx = this.ctx
     const element = this._currentElement
 
+    const clipPathId = element.props.clipPath || defaultClipPathId
+    const clipPathFnArray = ctx.clipPathMap.get(clipPathId)
     ctx.save()
-
     processProps(ctx, element)
-    drawing.draw(ctx, element)
-    this._renderedChildren.forEach(child => child.draw())
-
+    const needSaveRestore = clipPathFnArray.length > 1
+    for (const clipPathFn of clipPathFnArray) {
+      needSaveRestore && ctx.save()
+      clipPathFn(ctx)
+      drawing.draw(ctx, element)
+      this._renderedChildren.forEach(child => child.draw())
+      needSaveRestore && ctx.restore()
+    }
     ctx.restore()
+  }
+
+  buildClipPathFnArray(builder: ClipPathFnArrayBuilder) {
+    const element = this._currentElement
+    if (element.type === 'rect') {
+      const x = Number(element.props.x) || 0
+      const y = Number(element.props.y) || 0
+      const w = Number(element.props.width)
+      const h = Number(element.props.height)
+      builder.rect(x, y, w, h)
+    } else if (element.type === 'path') {
+      builder.path(element.props.d)
+    }
   }
 
   mountComponent(ctx: Ctx, context: any) {

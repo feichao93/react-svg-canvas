@@ -20,4 +20,7 @@ export default class RscEmptyComponent implements InternalComponent {
 
   draw() {
   }
+
+  buildClipPathFnArray() {
+  }
 }

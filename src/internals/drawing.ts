@@ -2,15 +2,15 @@ import Ctx from './ctx'
 
 export function draw(ctx: Ctx, element: JSX.Element) {
   if (element.type === 'rect') {
-    return rect(ctx, element.props)
+    return drawRect(ctx, element.props)
   } else if (element.type === 'path') {
-    return path(ctx, element.props)
+    return drawPath(ctx, element.props)
   } else {
     // console.warn(`Invalid shape type ${props.type}`)
   }
 }
 
-export function rect(ctx: Ctx, props: React.SVGProps<SVGRectElement>) {
+function drawRect(ctx: Ctx, props: React.SVGProps<SVGRectElement>) {
   const x = Number(props.x) || 0
   const y = Number(props.y) || 0
   const w = Number(props.width)
@@ -25,7 +25,7 @@ export function rect(ctx: Ctx, props: React.SVGProps<SVGRectElement>) {
   }
 }
 
-export function path(ctx: Ctx, props: React.SVGProps<SVGRectElement>) {
+function drawPath(ctx: Ctx, props: React.SVGProps<SVGRectElement>) {
   const path2d = new Path2D(props.d as any)
 
   if (ctx.fillStyle) {

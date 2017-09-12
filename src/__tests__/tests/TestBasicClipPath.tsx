@@ -1,15 +1,23 @@
 import * as React from 'react'
+import * as d3 from 'd3'
+import { Color } from 'd3'
 
 const totalWidth = 800
 const totalHeight = 400
 
-const color1 = [60, 59, 63]
-const color2 = [96, 92, 60]
+const color = d3.scaleLinear<Color>()
+  .domain([0, 1])
+  .range([d3.rgb(60, 59, 63), d3.rgb(96, 92, 60)])
 
-function color(t: number) {
-  const list = [0, 1, 2].map(index => color1[index] * t + color2[index] * (1 - t)).map(Math.round)
-  return `rgb(${list.join(',')})`
-}
+const width = d3.scaleLinear()
+  .domain([0, 1, 2])
+  .range([0, totalWidth, 0])
+  .interpolate((left, right) => t => d3.interpolate(left, right)(d3.easeExp(t)))
+
+const x = d3.scaleLinear()
+  .domain([0, 1, 2])
+  .range([0, 0, totalWidth])
+  .interpolate((left, right) => t => d3.interpolate(left, right)(d3.easeExp(t)))
 
 export default class TestBasicClipPath extends React.Component {
   private requestId: number
@@ -30,7 +38,7 @@ export default class TestBasicClipPath extends React.Component {
   animate = () => {
     const { t } = this.state
     const now = performance.now()
-    const delta = (now - this.time) / 4000
+    const delta = (now - this.time) / 1000
     this.time = now
 
     this.setState({
@@ -45,11 +53,7 @@ export default class TestBasicClipPath extends React.Component {
       <g>
         <defs>
           <clipPath id="basic-clip-path">
-            {t < 1 ? (
-              <rect x={0} y={0} width={totalWidth * t} height={totalHeight} />
-            ) : (
-              <rect x={(t - 1) * totalWidth} y={0} width={totalWidth} height={totalHeight} />
-            )}
+            <rect x={x(t)} y={0} width={width(t)} height={totalHeight} />
           </clipPath>
         </defs>
         <rect
@@ -58,7 +62,7 @@ export default class TestBasicClipPath extends React.Component {
           width={totalWidth}
           height={totalHeight}
           clipPath="url(#basic-clip-path)"
-          fill={color(t)}
+          fill={color(t).toString()}
         />
       </g>
     )

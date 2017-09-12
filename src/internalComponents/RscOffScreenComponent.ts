@@ -40,4 +40,7 @@ export default class RscOffScreenComponent implements InternalComponent {
     const parentComponent = this._parentComponent as RscCompositeComponent
     offScreenRenderFn.call(parentComponent._instance, ctx, offScreenCanvas)
   }
+
+  buildClipPathFnArray() {
+  }
 }

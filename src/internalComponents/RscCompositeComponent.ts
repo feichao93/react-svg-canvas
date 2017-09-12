@@ -6,6 +6,7 @@ import instantiateRscComponent from '../internals/instantiateRscComponent'
 import RscReconciler from '../internals/RscReconciler'
 import renderInst from '../internals/renderInst'
 import shouldUpdateRscComponent from '../internals/shouldUpdateRscComponent'
+import ClipPathFnArrayBuilder from '../internals/ClipPathFnArrayBuilder'
 import { InternalComponent } from './index'
 
 export default class RscCompositeComponent implements InternalComponent {
@@ -23,6 +24,10 @@ export default class RscCompositeComponent implements InternalComponent {
 
   draw() {
     this._renderedComponent.draw()
+  }
+
+  buildClipPathFnArray(builder: ClipPathFnArrayBuilder) {
+    this._renderedComponent.buildClipPathFnArray(builder)
   }
 
   mountComponent(ctx: Ctx, context: any) {
@@ -77,9 +82,9 @@ export default class RscCompositeComponent implements InternalComponent {
   }
 
   private updateComponent(prevElement: JSX.Element,
-                          nextElement: JSX.Element,
-                          prevUnmaskedContext: any,
-                          nextUnmaskedContext: any,) {
+    nextElement: JSX.Element,
+    prevUnmaskedContext: any,
+    nextUnmaskedContext: any, ) {
     const inst = this._instance
 
     const prevProps = prevElement.props
