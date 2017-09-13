@@ -27,7 +27,10 @@ function constructOffScreenCanvasIfNeeded(Component: any) {
   }
 }
 
-
+/** 调用inst.render()的方法来获得renderedElement
+ * 如果组件启用了off-screen pre-rendering, 则会返回一个type='offscreen'的element
+ * 这将导致后续调用instantiateRscComponent时会返回一个RscOffScreenComponent, 该组件的draw会执行off-screen rendering
+ */
 export default function renderInst(inst: PublicComponent, Component: PublicComponentClass) {
   const useOffScreenCanvas = Boolean((Component as any).offScreen)
   if (useOffScreenCanvas) {

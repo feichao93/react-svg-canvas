@@ -1,5 +1,6 @@
 import { ClipPathFn } from '../types'
 
+/* TODO 优化写法 */
 export default class ClipPathFnArrayBuilder {
   private readonly array: ClipPathFn[] = []
   private cntFn: ClipPathFn = null

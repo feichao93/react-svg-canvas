@@ -21,6 +21,9 @@ function processStyle(ctx: Ctx, style: CSSProperties) {
   }
 }
 
+/** 根据element的props来处理CanvasRenderingContext2D
+ * 下面的ctx是Ctx类型, 会处理canvas和svg不一致的地方
+ */
 export default function processProps(ctx: Ctx, element: JSX.Element) {
   const { transform, fill, stroke, style } = element.props
 

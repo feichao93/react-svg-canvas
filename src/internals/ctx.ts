@@ -8,11 +8,15 @@ interface StackItem {
   visible: boolean
 }
 
+/** 包装CanvasRenderingContext2D对象, 在其基础上添加了一些额外的属性 */
 class CanvasRenderingContext2DWrapper {
   readonly renderingContext2D: CanvasRenderingContext2D
+  /** stack用于实现save/restore方法 */
   private stack: StackItem[] = []
+  /** clipPath用于实现clipPath标签和clipPath属性 */
   readonly clipPathMap = new Map<string, ClipPathFn[]>()
 
+  /* 以下几个属性来处理SVG和canvas样式的不一致的情况 */
   // fill === 'none'
   fillIsNone = false
   // stroke === 'none'
@@ -20,6 +24,7 @@ class CanvasRenderingContext2DWrapper {
   // style.visibility === 'hidden' || style.display === 'none'
   visible = true
 
+  /* 以下几个属性和RSC相关 */
   rscRootComponentInstance: RscCompositeComponent = null
   redrawScheduled = false
   pendingSetStateCallbacks: SetStateCallback[] = []
