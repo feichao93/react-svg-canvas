@@ -1,7 +1,6 @@
 import {
   InternalComponent,
   RscCompositeComponent,
-  RscDefsComponent,
   RscDOMComponent,
   RscClipPathComponent,
   RscEmptyComponent,
@@ -14,8 +13,6 @@ export default function instantiateRscComponent(element: JSX.Element): InternalC
   } else if (typeof element.type === 'string') {
     if (element.type === 'offscreen') {
       return new RscOffScreenComponent(element)
-    } else if (element.type === 'defs') {
-      return new RscDefsComponent(element)
     } else if (element.type === 'clipPath') {
       return new RscClipPathComponent(element)
     } else {

@@ -2,7 +2,6 @@ import Ctx from '../internals/ctx'
 import ClipPathFnArrayBuilder from '../internals/ClipPathFnArrayBuilder'
 
 export { default as RscCompositeComponent } from './RscCompositeComponent'
-export { default as RscDefsComponent } from './RscDefsComponent'
 export { default as RscDOMComponent } from './RscDOMComponent'
 export { default as RscEmptyComponent } from './RscEmptyComponent'
 export { default as RscOffScreenComponent } from './RscOffScreenComponent'
