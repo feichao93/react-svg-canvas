@@ -4,6 +4,7 @@ import render from './render'
 import TestMovingBrickWalls from './tests/TestMovingBrickWalls'
 import TestBrickWallZoomIn from './tests/TestBrickWallZoomIn'
 import TestBasicClipPath from './tests/TestBasicClipPath'
+import TestBasicPattern from './tests/TestBasicPattern'
 
 const div1 = document.querySelector('#div-1')
 const div2 = document.querySelector('#div-2')
@@ -20,6 +21,7 @@ const testsMap: { [key: string]: React.ComponentClass } = {
   TestMovingBrickWalls,
   TestBrickWallZoomIn,
   TestBasicClipPath,
+  TestBasicPattern,
 }
 
 const buttonContainer = document.querySelector('.buttons') as HTMLDivElement

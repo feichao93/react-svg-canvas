@@ -1,4 +1,4 @@
-import { SetStateCallback, ClipPathFn } from '../types'
+import { SetStateCallback, ClipPathFn, PatternFn } from '../types'
 import { RscCompositeComponent } from '../internalComponents'
 import { noop, defaultClipPathId } from './constants'
 
@@ -15,6 +15,8 @@ export class CanvasRenderingContext2DWrapper {
   private stack: StackItem[] = []
   /** clipPath用于实现clipPath标签和clipPath属性 */
   readonly clipPathMap = new Map<string, ClipPathFn[]>()
+  /** patternMap用于实现pattern标签和fill=url(#some-pattern-id)属性 */
+  readonly patternMap = new Map<string, PatternFn>()
 
   /* 以下几个属性来处理SVG和canvas样式的不一致的情况 */
   // fill === 'none'

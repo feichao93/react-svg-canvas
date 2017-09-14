@@ -6,6 +6,7 @@ export { default as RscDOMComponent } from './RscDOMComponent'
 export { default as RscEmptyComponent } from './RscEmptyComponent'
 export { default as RscOffScreenComponent } from './RscOffScreenComponent'
 export { default as RscClipPathComponent } from './RscClipPathComponent'
+export { default as RscPatternComponent } from './RscPatternComponent'
 
 export interface InternalComponent {
   ctx: Ctx

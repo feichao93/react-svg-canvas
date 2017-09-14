@@ -5,6 +5,7 @@ import {
   RscClipPathComponent,
   RscEmptyComponent,
   RscOffScreenComponent,
+  RscPatternComponent,
 } from '../internalComponents'
 
 export default function instantiateRscComponent(element: JSX.Element): InternalComponent {
@@ -15,6 +16,8 @@ export default function instantiateRscComponent(element: JSX.Element): InternalC
       return new RscOffScreenComponent(element)
     } else if (element.type === 'clipPath') {
       return new RscClipPathComponent(element)
+    } else if (element.type === 'pattern') {
+      return new RscPatternComponent(element)
     } else {
       return new RscDOMComponent(element)
     }

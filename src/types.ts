@@ -25,3 +25,7 @@ export interface SetStateCallback {
 export interface ClipPathFn {
   (ctx: Ctx): void
 }
+
+export interface PatternFn {
+  (ctx: Ctx): void
+}

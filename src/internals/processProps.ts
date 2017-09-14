@@ -8,7 +8,17 @@ function processTransform(ctx: Ctx, transform: string) {
 }
 
 function processFill(ctx: Ctx, fill: string) {
-  ctx.fillStyle = fill
+  if (fill.startsWith('url')) {
+    const patternFn = ctx.patternMap.get(fill)
+    if (patternFn == null) {
+      console.warn(`pattern ${fill} is not defined`)
+      ctx.fillStyle = 'none'
+    } else {
+      patternFn(ctx)
+    }
+  } else {
+    ctx.fillStyle = fill
+  }
 }
 
 function processStroke(ctx: Ctx, stroke: string) {
