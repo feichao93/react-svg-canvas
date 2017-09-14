@@ -4,9 +4,12 @@
     "target": "es2017",
     "outDir": "build",
     "noImplicitAny": true,
-    "sourceMap": true,
-    "jsx": "react"
+    "jsx": "react",
+    "declaration": true
   },
+  "files": [
+    "src/index.ts"
+  ],
   "exclude": [
     "node_modules"
   ]

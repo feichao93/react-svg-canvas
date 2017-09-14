@@ -1,4 +1,4 @@
-interface SvgTransformMatrix {
+export interface SvgTransformMatrix {
   a: number
   b: number
   c: number
@@ -20,7 +20,7 @@ function mul(m: SvgTransformMatrix, n: SvgTransformMatrix) {
 
 const cache = new Map<string, SvgTransformMatrix>()
 
-const identMatrix = { a: 1, b: 0, c: 0, d: 1, e: 0, f: 0 }
+const identMatrix: SvgTransformMatrix = { a: 1, b: 0, c: 0, d: 1, e: 0, f: 0 }
 
 const svgNS = 'http://www.w3.org/2000/svg'
 

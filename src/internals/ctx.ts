@@ -9,7 +9,7 @@ interface StackItem {
 }
 
 /** 包装CanvasRenderingContext2D对象, 在其基础上添加了一些额外的属性 */
-class CanvasRenderingContext2DWrapper {
+export class CanvasRenderingContext2DWrapper {
   readonly renderingContext2D: CanvasRenderingContext2D
   /** stack用于实现save/restore方法 */
   private stack: StackItem[] = []

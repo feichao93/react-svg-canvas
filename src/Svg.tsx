@@ -2,7 +2,7 @@ import * as React from 'react'
 import rsc from './rsc'
 import Ctx from './internals/ctx'
 
-interface P {
+export interface P {
   width: number
   height: number
   className?: string
