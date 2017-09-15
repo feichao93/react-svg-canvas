@@ -33,6 +33,7 @@ react-svg-canvas支持用off-screen pre-rendering机制对渲染进行优化.
    * 对fill属性, stroke属性, transform属性的基本支持
    * style.visibility='hidden' 与 style.display='none'
    * 支持clipPath标签与clipPath属性, 允许rect和path作为clipPath (因为大部分浏览器没有实现Path2D#addPath方法, 所以这里的实现效率很低, 尽量避免以path为clipPath的情况)
+   * 支持pattern标签和fill=url(#some-pattern-id)  (仅支持patternUnits="userSpaceOnUse"的pattern)
 3. 使用react-svg-canvas渲染的组件只能使用`setState`来修改组件的state, 无法使用`replaceState`.
 4. 使用Svg组件时, 必须指定width和height属性
 5. react-svg-canvas对多次setState调用进行了batch. 因为使用了requestAnimationFrame, 导致setState触发的reconciliation task需要在下一个动画帧才执行. 所以基于react-svg-canvas的交互会有一定的延迟, react-svg-canvas更适合网页游戏.
